@@ -81,11 +81,13 @@ def load_images(folder_or_list, size, square_ok=False, verbose=True):
     elif isinstance(folder_or_list, list):
         if verbose:
             print(f'>> Loading a list of {len(folder_or_list)} images')
-        root, folder_content = '', folder_or_list
+        # root, folder_content = '', folder_or_list
+        root, folder_content = '', sorted(folder_or_list)
 
     else:
         raise ValueError(f'bad {folder_or_list=} ({type(folder_or_list)})')
 
+    # import pdb; pdb.set_trace()
     supported_images_extensions = ['.jpg', '.jpeg', '.png']
     if heif_support_enabled:
         supported_images_extensions += ['.heic', '.heif']

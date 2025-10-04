@@ -6,7 +6,8 @@
 # --------------------------------------------------------
 from enum import Enum
 
-from .optimizer import PointCloudOptimizer
+# from .optimizer import PointCloudOptimizer
+from .optimizer_v2 import PointCloudOptimizer
 from .modular_optimizer import ModularPointCloudOptimizer
 from .pair_viewer import PairViewer
 

@@ -50,7 +50,9 @@ class BasePCOptimizer (nn.Module):
                          pw_break=20,
                          rand_pose=torch.randn,
                          iterationsCount=None,
-                         verbose=True):
+                        #  verbose=True
+                         verbose=False
+                         ):
         super().__init__()
         if not isinstance(view1['idx'], list):
             view1['idx'] = view1['idx'].tolist()
@@ -61,6 +63,7 @@ class BasePCOptimizer (nn.Module):
         self.dist = ALL_DISTS[dist]
         self.verbose = verbose
 
+        # import pdb; pdb.set_trace()
         self.n_imgs = self._check_edges()
 
         # input data
@@ -129,11 +132,16 @@ class BasePCOptimizer (nn.Module):
 
     def _check_edges(self):
         indices = sorted({i for edge in self.edges for i in edge})
-        assert indices == list(range(len(indices))), 'bad pair indices: missing values '
+        # assert indices == list(range(len(indices))), 'bad pair indices: missing values '
+        if indices != list(range(len(indices))):
+            print("Warning: 'bad pair indices: missing values' , this may cause problems")
+            return max(indices)+1
+        
         return len(indices)
 
     @torch.no_grad()
     def _compute_img_conf(self, pred1_conf, pred2_conf):
+        # im_conf = nn.ParameterList([torch.zeros(hw, device=self.device) for hw in self.imshapes])
         im_conf = nn.ParameterList([torch.zeros(hw, device=self.device) for hw in self.imshapes])
         for e, (i, j) in enumerate(self.edges):
             im_conf[i] = torch.maximum(im_conf[i], pred1_conf[e])
@@ -165,6 +173,7 @@ class BasePCOptimizer (nn.Module):
             T = R[:3, 3]
             R = R[:3, :3]
 
+        # import pdb; pdb.set_trace()
         if R is not None:
             pose.data[0:4] = roma.rotmat_to_unitquat(R)
         if T is not None:
@@ -189,6 +198,7 @@ class BasePCOptimizer (nn.Module):
         return scale
 
     def get_pw_poses(self):  # cam to world
+        # import pdb; pdb.set_trace()
         RT = self._get_poses(self.pw_poses)
         scaled_RT = RT.clone()
         scaled_RT[:, :3] *= self.get_pw_scale().view(-1, 1, 1)  # scale the rotation AND translation
@@ -398,6 +408,7 @@ def clean_pointcloud( im_confs, K, cams, depthmaps, all_pts3d,
             # find bad points = those in front but less confident
             bad_points = (proj_depth[msk_i] < (1-tol) * depthmaps[j][msk_j]) & (res[i][msk_i] < res[j][msk_j])
 
+            # import pdb; pdb.set_trace()
             bad_msk_i = msk_i.clone()
             bad_msk_i[msk_i] = bad_points
             res[i][bad_msk_i] = res[i][bad_msk_i].clip_(max=bad_conf)

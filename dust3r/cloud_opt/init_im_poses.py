@@ -4,8 +4,8 @@
 # --------------------------------------------------------
 # Initialization functions for global alignment
 # --------------------------------------------------------
-from functools import cache
-
+# from functools import cache
+from functools import lru_cache as cache
 import numpy as np
 import scipy.sparse as sp
 import torch
@@ -48,6 +48,7 @@ def init_from_known_poses(self, niter_PnP=10, min_conf_thr=3):
         s, R, T = align_multiple_poses(torch.stack((P1, P2)), known_poses[[i, j]])
         # normally we have known_poses[i] ~= sRT_to_4x4(s,R,T,device) @ P1
         # and geotrf(sRT_to_4x4(1,R,T,device), s*P2[:3,3])
+        # import pdb; pdb.set_trace()
         self._set_pose(self.pw_poses, e, R, T, scale=s)
 
         # remember if this is a good depthmap
@@ -90,8 +91,10 @@ def init_from_pts3d(self, pts3d, im_focals, im_poses):
         # rotate everything
         im_poses = trf @ im_poses
         im_poses[:, :3, :3] /= s  # undo scaling on the rotation part
+        # import pdb; pdb.set_trace()
         for img_pts3d in pts3d:
-            img_pts3d[:] = geotrf(trf, img_pts3d)
+            if img_pts3d is not None:
+                img_pts3d[:] = geotrf(trf, img_pts3d)
 
     # set all pairwise poses
     for e, (i, j) in enumerate(self.edges):
@@ -104,11 +107,16 @@ def init_from_pts3d(self, pts3d, im_focals, im_poses):
     s_factor = self.get_pw_norm_scale_factor()
     im_poses[:, :3, 3] *= s_factor  # apply downscaling factor
     for img_pts3d in pts3d:
-        img_pts3d *= s_factor
+        if img_pts3d is not None:
+            img_pts3d *= s_factor
 
     # init all image poses
     if self.has_im_poses:
         for i in range(self.n_imgs):
+            if pts3d[i] is None:
+                print(f'Warning: no 3D points for image {i}')
+                continue
+
             cam2world = im_poses[i]
             depth = geotrf(inv(cam2world), pts3d[i])[..., 2]
             self._set_depthmap(i, depth)
@@ -120,8 +128,10 @@ def init_from_pts3d(self, pts3d, im_focals, im_poses):
         print(' init loss =', float(self()))
 
 
+# def minimum_spanning_tree(imshapes, edges, pred_i, pred_j, conf_i, conf_j, im_conf, min_conf_thr,
+#                           device, has_im_poses=True, niter_PnP=10, verbose=True):
 def minimum_spanning_tree(imshapes, edges, pred_i, pred_j, conf_i, conf_j, im_conf, min_conf_thr,
-                          device, has_im_poses=True, niter_PnP=10, verbose=True):
+                          device, has_im_poses=True, niter_PnP=10, verbose=False):
     n_imgs = len(imshapes)
     sparse_graph = -dict_to_sparse_graph(compute_edge_scores(map(i_j_ij, edges), conf_i, conf_j))
     msp = sp.csgraph.minimum_spanning_tree(sparse_graph).tocoo()
